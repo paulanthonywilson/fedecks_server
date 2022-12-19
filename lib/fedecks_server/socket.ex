@@ -24,8 +24,12 @@ defmodule FedecksServer.Socket do
   @impl Phoenix.Socket.Transport
   def connect(%{connect_info: %{x_headers: x_headers, fedecks_handler: handler}}) do
     case List.keyfind(x_headers, "x-fedecks-auth", 0) do
-      {_, encoded_auth} -> authenticate_encoded(encoded_auth, handler)
-      nil -> :error
+      {_, encoded_auth} ->
+        authenticate_encoded(encoded_auth, handler)
+
+      nil ->
+        socket_error(handler, nil, :invalid_auth_header, "missing")
+        :error
     end
   end
 
@@ -38,23 +42,45 @@ defmodule FedecksServer.Socket do
 
   defp authenticate_encoded(encoded_auth, handler) when byte_size(encoded_auth) < 1_024 do
     case Base.decode64(encoded_auth) do
-      {:ok, term} -> term |> :erlang.binary_to_term([:safe]) |> authenticate_decoded(handler)
-      :error -> :error
+      {:ok, term} ->
+        term |> :erlang.binary_to_term([:safe]) |> authenticate_decoded(handler)
+
+      :error ->
+        socket_error(handler, nil, :invalid_auth_header, "not base64")
+        :error
     end
   rescue
-    ArgumentError ->
+    e in ArgumentError ->
+      socket_error(handler, nil, :invalid_auth_header, e.message)
       :error
   end
 
-  defp authenticate_encoded(_, _), do: :error
+  defp authenticate_encoded(_, handler) do
+    socket_error(handler, nil, :invalid_auth_header, "too long")
+    :error
+  end
 
   defp authenticate_decoded(
          %{"fedecks-device-id" => device_id, "fedecks-token" => token},
          handler
        ) do
     case Token.from_token(token, token_secrets(handler)) do
-      {:ok, ^device_id} -> {:ok, %__MODULE__{device_id: device_id, handler: handler}}
-      _ -> :error
+      {:ok, ^device_id} ->
+        {:ok, %__MODULE__{device_id: device_id, handler: handler}}
+
+      {:ok, token_device} ->
+        socket_error(
+          handler,
+          device_id,
+          :invalid_token,
+          "wrong device id in token, '#{token_device}'"
+        )
+
+        :error
+
+      _err ->
+        socket_error(handler, device_id, :invalid_token, "")
+        :error
     end
   end
 
@@ -62,11 +88,20 @@ defmodule FedecksServer.Socket do
     if apply(handler, :authenticate?, [auth]) do
       {:ok, %__MODULE__{device_id: device_id, handler: handler}}
     else
+      socket_error(handler, device_id, :authentication_failed, "")
       :error
     end
   end
 
-  defp authenticate_decoded(_, _), do: :error
+  defp authenticate_decoded(%{}, handler) do
+    socket_error(handler, nil, :invalid_auth_header, "no device id")
+    :error
+  end
+
+  defp authenticate_decoded(_, handler) do
+    socket_error(handler, nil, :invalid_auth_header, "not a map")
+    :error
+  end
 
   @impl Phoenix.Socket.Transport
   def init(state) do
@@ -122,9 +157,15 @@ defmodule FedecksServer.Socket do
     {apply(handler, :otp_app, []), handler}
   end
 
-  defp maybe_handle(%{handler: m, device_id: device_id}, f, a) do
-    a = [device_id | a]
+  defp socket_error(handler, device_id, error_type, info) do
+    maybe_apply(handler, :socket_error, [device_id, error_type, info])
+  end
 
+  defp maybe_handle(%{handler: m, device_id: device_id}, f, a) do
+    maybe_apply(m, f, [device_id | a])
+  end
+
+  defp maybe_apply(m, f, a) do
     if function_exported?(m, f, length(a)) do
       apply(m, f, a)
     end

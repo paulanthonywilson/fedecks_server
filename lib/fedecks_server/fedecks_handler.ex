@@ -23,8 +23,6 @@ defmodule FedecksServer.FedecksHandler do
     token_refresh_millis: :timer.minutes(30),
     token_expiry_secs: 360
   ```
-
-
   """
 
   @type opcode :: :binary | :text
@@ -72,5 +70,15 @@ defmodule FedecksServer.FedecksHandler do
   @callback handle_info(device_id :: String.t(), {opcode(), message :: binary()}) ::
               :ok | {:push, {opcode(), message :: binary()}} | {:stop, reason :: term}
 
-  @optional_callbacks handle_incoming: 2, connection_established: 1, handle_info: 2
+  @type error_type :: :invalid_auth_header | :authentication_failed
+  @doc """
+  Optionally called when an error occurs, such as receiving an invalid message, authentication failure, or other
+
+  """
+  @callback socket_error(device_id :: String.t(), error_type(), info :: term()) :: any()
+
+  @optional_callbacks handle_incoming: 2,
+                      connection_established: 1,
+                      handle_info: 2,
+                      socket_error: 3
 end

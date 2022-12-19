@@ -40,6 +40,11 @@ defmodule FedecksServer.SocketTest do
 
     @impl FedecksHandler
     def otp_app, do: :fedecks_server
+
+    @impl FedecksHandler
+    def socket_error(device_id, error_type, info) do
+      send(self(), {:socket_error, {device_id, error_type, info}})
+    end
   end
 
   defmodule BareHandler do
@@ -73,6 +78,8 @@ defmodule FedecksServer.SocketTest do
                }
                |> conn_with_auth_headers(FullHandler)
                |> Socket.connect()
+
+      assert_received {:socket_error, {"nerves-543x", :authentication_failed, ""}}
     end
 
     test "fails if device_id missing" do
@@ -80,7 +87,16 @@ defmodule FedecksServer.SocketTest do
                %{"username" => "marvin", "password" => "paranoid-android"}
                |> conn_with_auth_headers(FullHandler)
                |> Socket.connect()
+
+      assert_received {:socket_error, {nil, :invalid_auth_header, "no device id"}}
     end
+  end
+
+  test "socket error callback is optional" do
+    :error =
+      %{"username" => "marvin", "password" => "paranoid-android"}
+      |> conn_with_auth_headers(BareHandler)
+      |> Socket.connect()
   end
 
   describe "reconnect with token" do
@@ -102,6 +118,8 @@ defmodule FedecksServer.SocketTest do
                %{"fedecks-token" => "hi", "fedecks-device-id" => "nerves-987x"}
                |> conn_with_auth_headers(FullHandler)
                |> Socket.connect()
+
+      assert_received {:socket_error, {"nerves-987x", :invalid_token, ""}}
     end
 
     test "does not reconnect if device_id embedded in token does not match that passed as a parameter" do
@@ -114,6 +132,10 @@ defmodule FedecksServer.SocketTest do
                %{"fedecks-token" => token, "fedecks-device-id" => "sciatica-987x"}
                |> conn_with_auth_headers(FullHandler)
                |> Socket.connect()
+
+      assert_received {:socket_error,
+                       {"sciatica-987x", :invalid_token,
+                        "wrong device id in token, 'nerves-987x'"}}
     end
   end
 
@@ -121,21 +143,29 @@ defmodule FedecksServer.SocketTest do
     test "it is missing" do
       assert :error ==
                Socket.connect(conn(FullHandler, []))
+
+      assert_received {:socket_error, {nil, :invalid_auth_header, "missing"}}
     end
 
     test "it is not base 64 encoded" do
       assert :error ==
-               Socket.connect(conn(FullHandler, [{"x-fedecks-auth", 1}]))
+               Socket.connect(conn(FullHandler, [{"x-fedecks-auth", "1"}]))
+
+      assert_received {:socket_error, {nil, :invalid_auth_header, "not base64"}}
     end
 
     test "it does not encode to a binary term" do
       assert :error ==
                Socket.connect(conn(FullHandler, [{"x-fedecks-auth", Base.encode64("nope")}]))
+
+      assert_received {:socket_error, {nil, :invalid_auth_header, info}}
+      assert info =~ "invalid or unsafe"
     end
 
     test "it does not encode to a map" do
       val = "hello matey" |> :erlang.term_to_binary() |> Base.encode64()
       assert :error == Socket.connect(conn(FullHandler, [{"x-fedecks-auth", val}]))
+      assert_received {:socket_error, {nil, :invalid_auth_header, "not a map"}}
     end
 
     test "it encodes an unsafe term" do
@@ -151,6 +181,8 @@ defmodule FedecksServer.SocketTest do
         "g3QAAAAEbQAAABFmZWRlY2tzLWRldmljZS1pZG0AAAALbmVydmVzLTU0M3htAAAABW90aGVyZAARbm90X2V4aXN0aW5nX2F0b21tAAAACHBhc3N3b3JkbQAAABBwYXJhbm9pZC1hbmRyb2lkbQAAAAh1c2VybmFtZW0AAAAGbWFydmlu"
 
       assert :error == Socket.connect(conn(FullHandler, [{"x-fedecks-auth", val}]))
+      assert_received {:socket_error, {nil, :invalid_auth_header, info}}
+      assert info =~ "invalid or unsafe"
     end
 
     test "headers over 1k (ish) rejected" do
@@ -164,6 +196,8 @@ defmodule FedecksServer.SocketTest do
                }
                |> conn_with_auth_headers(FullHandler)
                |> Socket.connect()
+
+      assert_received {:socket_error, {nil, :invalid_auth_header, "too long"}}
     end
   end
 

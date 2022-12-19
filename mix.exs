@@ -21,6 +21,7 @@ defmodule FedecksServer.MixProject do
   defp deps do
     [
       {:credo, "~> 1.6", only: [:dev, :test]},
+      {:dialyxir, "~> 1.2", only: [:dev, :test], runtime: false},
       {:phoenix, "~> 1.6"}
     ]
   end
