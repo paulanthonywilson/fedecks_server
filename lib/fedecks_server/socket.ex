@@ -7,7 +7,7 @@ defmodule FedecksServer.Socket do
   tbd
 
   """
-  alias FedecksServer.{Config, Token}
+  alias FedecksServer.{Config, Token, BinaryCodec}
   @behaviour Phoenix.Socket.Transport
 
   keys = [:device_id, :handler]
@@ -41,18 +41,24 @@ defmodule FedecksServer.Socket do
   end
 
   defp authenticate_encoded(encoded_auth, handler) when byte_size(encoded_auth) < 1_024 do
-    case Base.decode64(encoded_auth) do
-      {:ok, term} ->
-        term |> :erlang.binary_to_term([:safe]) |> authenticate_decoded(handler)
+    case BinaryCodec.decode_base64(encoded_auth) do
+      {:ok, auth} ->
+        authenticate_decoded(auth, handler)
 
-      :error ->
+      {:error, :invalid_binary_term} ->
+        socket_error(
+          handler,
+          nil,
+          :invalid_auth_header,
+          "encoded binary auth was invalid or unsafe"
+        )
+
+        :error
+
+      {:error, :not_base64} ->
         socket_error(handler, nil, :invalid_auth_header, "not base64")
         :error
     end
-  rescue
-    e in ArgumentError ->
-      socket_error(handler, nil, :invalid_auth_header, e.message)
-      :error
   end
 
   defp authenticate_encoded(_, handler) do
@@ -114,7 +120,7 @@ defmodule FedecksServer.Socket do
   def handle_info(:refresh_token, %{device_id: device_id, handler: handler} = state) do
     Process.send_after(self(), :refresh_token, token_refresh_millis(handler))
     token = device_id |> Token.to_token(token_expiry_secs(handler), token_secrets(handler))
-    msg = :erlang.term_to_binary({'token', token})
+    msg = BinaryCodec.encode({'token', token})
     {:push, {:binary, msg}, state}
   end
 
@@ -127,12 +133,37 @@ defmodule FedecksServer.Socket do
   end
 
   @impl Phoenix.Socket.Transport
-  def handle_in(message, state) do
-    case maybe_handle(state, :handle_incoming, [message]) do
-      {:reply, message} -> {:reply, :ok, message, state}
-      {:stop, reason} -> {:stop, reason, state}
-      _ -> {:ok, state}
+  def handle_in({:binary, <<131>> <> _ = bin_message}, state) do
+    case BinaryCodec.decode(bin_message) do
+      {:ok, message} ->
+        do_handle_in(message, :handle_in, state)
+
+      :error ->
+        do_handle_in(bin_message, :handle_raw_in, state)
     end
+  end
+
+  def handle_in({:binary, message}, state) do
+    do_handle_in(message, :handle_raw_in, state)
+  end
+
+  def handle_in(_, state), do: {:ok, state}
+
+  defp do_handle_in(message, handler_fun, state) do
+    state
+    |> maybe_handle(handler_fun, [message])
+    |> handle_in_response(state)
+  end
+
+  defp handle_in_response({:reply, message}, state) do
+    {:reply, :ok, encode_reply(message), state}
+  end
+
+  defp handle_in_response({:stop, reason}, state), do: {:stop, reason, state}
+  defp handle_in_response(_, state), do: {:ok, state}
+
+  defp encode_reply(message) do
+    {:binary, :erlang.term_to_binary(message)}
   end
 
   defp token_expiry_secs(handler) do

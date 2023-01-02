@@ -6,17 +6,32 @@ defmodule FedecksServer.SocketTest do
     @behaviour FedecksHandler
 
     @impl FedecksHandler
-    def handle_incoming(device_id, {:text, "no reply needed"}) do
-      send(self(), {device_id, :noreply_message})
+
+    def handle_in(device_id, %{"talk to" => "me"}) do
+      {:reply, "#{device_id} term wat?"}
+    end
+
+    def handle_in(device_id, %{"Please" => "stop"}) do
+      {:stop, "#{device_id} asked to stop"}
+    end
+
+    def handle_in(device_id, _) do
+      send(self(), {device_id, :noreply_term_message})
       :ok
     end
 
-    def handle_incoming(device_id, {:text, "talk to me"}) do
-      {:reply, {:text, "#{device_id} wat?"}}
+    @impl FedecksHandler
+    def handle_raw_in(device_id, "talk to me") do
+      {:reply, "#{device_id} raw wat?"}
     end
 
-    def handle_incoming(device_id, {:text, "stop!"}) do
+    def handle_raw_in(device_id, "Please stop.") do
       {:stop, "#{device_id} asked to stop"}
+    end
+
+    def handle_raw_in(device_id, _) do
+      send(self(), {device_id, :noreply_raw_message})
+      :ok
     end
 
     @impl FedecksHandler
@@ -168,19 +183,10 @@ defmodule FedecksServer.SocketTest do
       assert_received {:socket_error, {nil, :invalid_auth_header, "not a map"}}
     end
 
-    test "it encodes an unsafe term" do
-      # Base 64 binary term for
-      # iex(28)> h
-      # %{
-      #   "fedecks-device-id" => "nerves-543x",
-      #   "other" => :not_existing_atom,
-      #   "password" => "paranoid-android",
-      #   "username" => "marvin"
-      # }
-      val =
-        "g3QAAAAEbQAAABFmZWRlY2tzLWRldmljZS1pZG0AAAALbmVydmVzLTU0M3htAAAABW90aGVyZAARbm90X2V4aXN0aW5nX2F0b21tAAAACHBhc3N3b3JkbQAAABBwYXJhbm9pZC1hbmRyb2lkbQAAAAh1c2VybmFtZW0AAAAGbWFydmlu"
+    test "it will not decode an unsafe term" do
+      assert :error ==
+               Socket.connect(conn(FullHandler, [{"x-fedecks-auth", BadBinary.base64_unsafe()}]))
 
-      assert :error == Socket.connect(conn(FullHandler, [{"x-fedecks-auth", val}]))
       assert_received {:socket_error, {nil, :invalid_auth_header, info}}
       assert info =~ "invalid or unsafe"
     end
@@ -234,8 +240,8 @@ defmodule FedecksServer.SocketTest do
     end
   end
 
-  describe "incoming messages" do
-    test "by default ignores messages" do
+  describe "incoming binary term messages" do
+    test "ignored if handle_in is not implemented" do
       assert {:ok, %{device_id: "y"}} =
                Socket.handle_in(
                  {:binary, :erlang.term_to_binary("hello matey")},
@@ -243,22 +249,97 @@ defmodule FedecksServer.SocketTest do
                )
     end
 
-    test "calls `handle_incoming_message` if provided" do
-      assert {:ok, %{device_id: "xyz"}} =
-               Socket.handle_in({:text, "no reply needed"}, state(FullHandler, "xyz"))
-
-      assert_received {"xyz", :noreply_message}
+    test "handled, if handle_in is implemented" do
+      assert {:ok, %{device_id: "123"}} =
+               Socket.handle_in(
+                 {:binary, :erlang.term_to_binary("no reply needed")},
+                 state(FullHandler, "123")
+               )
     end
 
     test "can also reply" do
-      assert {:reply, :ok, {:text, "xyz wat?"}, %{device_id: "xyz"}} =
-               Socket.handle_in({:text, "talk to me"}, state(FullHandler, "xyz"))
+      assert {:reply, :ok, {:binary, reply}, %{device_id: "xyz"}} =
+               Socket.handle_in(
+                 {:binary, :erlang.term_to_binary(%{"talk to" => "me"})},
+                 state(FullHandler, "xyz")
+               )
+
+      assert "xyz term wat?" == :erlang.binary_to_term(reply)
     end
 
     test "can terminate the websocket" do
       assert {:stop, "123 asked to stop", %{device_id: "123"}} =
-               Socket.handle_in({:text, "stop!"}, state(FullHandler, "123"))
+               Socket.handle_in(
+                 {:binary, :erlang.term_to_binary(%{"Please" => "stop"})},
+                 state(FullHandler, "123")
+               )
     end
+  end
+
+  describe "incoming binary messages that are not erlang terms" do
+    test "ignored if handle_raw_in is not implemented" do
+      assert {:ok, %{device_id: "y"}} =
+               Socket.handle_in(
+                 {:binary, "hello matey"},
+                 state(BareHandler, "y")
+               )
+    end
+
+    test "messages handled with `handle_raw_in`" do
+      assert {:ok, %{device_id: "xyz"}} =
+               Socket.handle_in(
+                 {:binary, "no reply"},
+                 state(FullHandler, "xyz")
+               )
+
+      assert_received {"xyz", :noreply_raw_message}
+    end
+
+    test "can also reply" do
+      assert {:reply, :ok, {:binary, reply}, %{device_id: "xyz"}} =
+               Socket.handle_in(
+                 {:binary, "talk to me"},
+                 state(FullHandler, "xyz")
+               )
+
+      assert "xyz raw wat?" == :erlang.binary_to_term(reply)
+    end
+
+    test "can terminate the websocket" do
+      assert {:stop, "123 asked to stop", %{device_id: "123"}} =
+               Socket.handle_in(
+                 {:binary, "Please stop."},
+                 state(FullHandler, "123")
+               )
+    end
+
+    test "binary messages beginning with <<131>> which are not valid terms are handled with `handle_raw_in`" do
+      assert {:ok, %{device_id: "xyz"}} =
+               Socket.handle_in(
+                 {:binary, <<131>> <> "lol"},
+                 state(FullHandler, "xyz")
+               )
+
+      assert_received {"xyz", :noreply_raw_message}
+    end
+
+    test "unsafe binary messages are handled with `handle_raw_in`" do
+      assert {:ok, %{device_id: "xyz"}} =
+               Socket.handle_in(
+                 {:binary, BadBinary.unsafe()},
+                 state(FullHandler, "xyz")
+               )
+
+      assert_received {"xyz", :noreply_raw_message}
+    end
+  end
+
+  test "incoming test messages are always ignored" do
+    assert {:ok, %{device_id: "y"}} =
+             Socket.handle_in(
+               {:text, "hello matey"},
+               state(BareHandler, "y")
+             )
   end
 
   describe "handling info messages" do

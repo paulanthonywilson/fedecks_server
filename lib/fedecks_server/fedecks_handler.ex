@@ -40,13 +40,28 @@ defmodule FedecksServer.FedecksHandler do
   @callback authenticate?(map()) :: boolean()
 
   @doc """
-  Can handle incoming text or binary messages.
+  Optional. Handles incoming message, which has been encoded by the Fedecks client as an Erlang binary term that
+  is safe to decode. Binary messages which are not safe Erlang terms can be handled by `handle_raw_in/2`. Text
+  messages are ignored.
+
   - For no reply, return ':ok'
-  - To reply, return '{:reply, message}` where opcode is `:text` or `binary`
+  - To reply, return '{:reply, message}`. The message will be conded as an Erlang binary term. As the
+  Fedecks client will used safe decoding avoid atoms (or structs) that are not present on the client. It
+  is safer to stick to maps, rather than structs, and strings rather than atoms (eg for map keys).
   - To terminate the connection, return `{:stop, reason}`
   """
-  @callback handle_incoming(device_id :: String.t(), {opcode(), message :: binary()}) ::
+  @callback handle_in(device_id :: String.t(), message :: term()) ::
               :ok | {:reply, {opcode(), message :: binary}} | {:stop, term()}
+
+  @doc """
+  Optional. Handles incoming messages which are not safe Erlang terms.
+
+  - For no reply, return ':ok'
+  - To reply, return '{:reply, message}`. The message will be sent to the client as a binary.
+  - To terminate the connection, return `{:stop, reason}`
+  """
+  @callback handle_raw_in(device_id :: String.t(), message :: binary()) ::
+              :ok | {:reply, message :: binary} | {:stop, term()}
 
   @doc """
   Called when a new connection is established, with the Fedecks box device_id.
@@ -77,7 +92,8 @@ defmodule FedecksServer.FedecksHandler do
   """
   @callback socket_error(device_id :: String.t(), error_type(), info :: term()) :: any()
 
-  @optional_callbacks handle_incoming: 2,
+  @optional_callbacks handle_in: 2,
+                      handle_raw_in: 2,
                       connection_established: 1,
                       handle_info: 2,
                       socket_error: 3
