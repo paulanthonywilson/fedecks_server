@@ -36,7 +36,7 @@ defmodule FedecksServer.SocketTest do
 
     @impl FedecksHandler
     def handle_info(device_id, :hello_matey) do
-      {:push, {:text, "#{device_id}, hello matey boy"}}
+      {:push, "#{device_id}, hello matey boy"}
     end
 
     @impl FedecksHandler
@@ -344,8 +344,10 @@ defmodule FedecksServer.SocketTest do
 
   describe "handling info messages" do
     test "passes on messages to the the callback" do
-      assert {:push, {:text, "has-a-nerve, hello matey boy"}, %{device_id: "has-a-nerve"}} =
+      assert {:push, {:binary, <<131>> <> _ = message}, %{device_id: "has-a-nerve"}} =
                Socket.handle_info(:hello_matey, state(FullHandler, "has-a-nerve"))
+
+      assert "has-a-nerve, hello matey boy" = :erlang.binary_to_term(message)
     end
 
     test "defaults to no op" do

@@ -51,7 +51,7 @@ defmodule FedecksServer.FedecksHandler do
   - To terminate the connection, return `{:stop, reason}`
   """
   @callback handle_in(device_id :: String.t(), message :: term()) ::
-              :ok | {:reply, {opcode(), message :: binary}} | {:stop, term()}
+              :ok | {:reply, message :: term()} | {:stop, term()}
 
   @doc """
   Optional. Handles incoming messages which are not safe Erlang terms.
@@ -61,7 +61,7 @@ defmodule FedecksServer.FedecksHandler do
   - To terminate the connection, return `{:stop, reason}`
   """
   @callback handle_raw_in(device_id :: String.t(), message :: binary()) ::
-              :ok | {:reply, message :: binary} | {:stop, term()}
+              :ok | {:reply, message :: term()} | {:stop, term()}
 
   @doc """
   Called when a new connection is established, with the Fedecks box device_id.
@@ -78,12 +78,12 @@ defmodule FedecksServer.FedecksHandler do
   out. The info message and a map of user data is sent. Return
 
   * `:ok` for now action
-  * `{:push, {:opcode, message}}`  to send a message down the socket
+  * `{:push, message}`  to send a message down the socket, as an erlang binary term
   * `{:stop, reason}` to
 
   """
-  @callback handle_info(device_id :: String.t(), {opcode(), message :: binary()}) ::
-              :ok | {:push, {opcode(), message :: binary()}} | {:stop, reason :: term}
+  @callback handle_info(device_id :: String.t(), message :: term()) ::
+              :ok | {:push, message :: term()} | {:stop, reason :: term}
 
   @type error_type :: :invalid_auth_header | :authentication_failed
   @doc """

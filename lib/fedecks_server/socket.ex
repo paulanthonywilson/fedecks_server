@@ -126,9 +126,15 @@ defmodule FedecksServer.Socket do
 
   def handle_info(message, state) do
     case maybe_handle(state, :handle_info, [message]) do
-      {:push, message} -> {:push, message, state}
-      {:stop, reason} -> {:stop, reason, state}
-      _ -> {:ok, state}
+      {:push, message} ->
+        encoded = BinaryCodec.encode(message)
+        {:push, {:binary, encoded}, state}
+
+      {:stop, reason} ->
+        {:stop, reason, state}
+
+      _ ->
+        {:ok, state}
     end
   end
 
