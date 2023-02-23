@@ -238,7 +238,7 @@ defmodule FedecksServer.SocketTest do
   test "requesting a token" do
     assert {:ok, %{device_id: "y"}} =
              Socket.handle_in(
-               {:binary, :erlang.term_to_binary('token_please')},
+               {:erlang.term_to_binary('token_please'), opcode: :binary},
                state(BareHandler, "y")
              )
 
@@ -265,7 +265,7 @@ defmodule FedecksServer.SocketTest do
     test "can also reply" do
       assert {:reply, :ok, {:binary, reply}, %{device_id: "xyz"}} =
                Socket.handle_in(
-                 {:binary, :erlang.term_to_binary(%{"talk to" => "me"})},
+                 {:erlang.term_to_binary(%{"talk to" => "me"}), opcode: :binary},
                  state(FullHandler, "xyz")
                )
 
@@ -275,7 +275,7 @@ defmodule FedecksServer.SocketTest do
     test "can terminate the websocket" do
       assert {:stop, "123 asked to stop", %{device_id: "123"}} =
                Socket.handle_in(
-                 {:binary, :erlang.term_to_binary(%{"Please" => "stop"})},
+                 {:erlang.term_to_binary(%{"Please" => "stop"}), opcode: :binary},
                  state(FullHandler, "123")
                )
     end
@@ -293,7 +293,7 @@ defmodule FedecksServer.SocketTest do
     test "messages handled with `handle_raw_in`" do
       assert {:ok, %{device_id: "xyz"}} =
                Socket.handle_in(
-                 {:binary, "no reply"},
+                 {"no reply", opcode: :binary},
                  state(FullHandler, "xyz")
                )
 
@@ -303,7 +303,7 @@ defmodule FedecksServer.SocketTest do
     test "can also reply" do
       assert {:reply, :ok, {:binary, reply}, %{device_id: "xyz"}} =
                Socket.handle_in(
-                 {:binary, "talk to me"},
+                 {"talk to me", opcode: :binary},
                  state(FullHandler, "xyz")
                )
 
@@ -313,7 +313,7 @@ defmodule FedecksServer.SocketTest do
     test "can terminate the websocket" do
       assert {:stop, "123 asked to stop", %{device_id: "123"}} =
                Socket.handle_in(
-                 {:binary, "Please stop."},
+                 {"Please stop.", opcode: :binary},
                  state(FullHandler, "123")
                )
     end
@@ -321,7 +321,7 @@ defmodule FedecksServer.SocketTest do
     test "binary messages beginning with <<131>> which are not valid terms are handled with `handle_raw_in`" do
       assert {:ok, %{device_id: "xyz"}} =
                Socket.handle_in(
-                 {:binary, <<131>> <> "lol"},
+                 {<<131>> <> "lol", opcode: :binary},
                  state(FullHandler, "xyz")
                )
 
@@ -331,7 +331,7 @@ defmodule FedecksServer.SocketTest do
     test "unsafe binary messages are handled with `handle_raw_in`" do
       assert {:ok, %{device_id: "xyz"}} =
                Socket.handle_in(
-                 {:binary, BadBinary.unsafe()},
+                 {BadBinary.unsafe(), opcode: :binary},
                  state(FullHandler, "xyz")
                )
 
