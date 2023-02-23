@@ -224,11 +224,6 @@ defmodule FedecksServer.SocketTest do
                Socket.init(state(FullHandler))
     end
 
-    test "initiates sending a new connection token" do
-      {:ok, _} = Socket.init(state(FullHandler))
-      assert_received :refresh_token
-    end
-
     test "connection established callback is, well, called" do
       {:ok, _} = Socket.init(state(FullHandler, "nerves-123b"))
       assert_received {:FullHandler, :connected, "nerves-123b"}
@@ -238,6 +233,16 @@ defmodule FedecksServer.SocketTest do
       {:ok, _} = Socket.init(state(BareHandler, "nerves-123b"))
       refute_received {_, :connected, _}
     end
+  end
+
+  test "requesting a token" do
+    assert {:ok, %{device_id: "y"}} =
+             Socket.handle_in(
+               {:binary, :erlang.term_to_binary('token_please')},
+               state(BareHandler, "y")
+             )
+
+    assert_received :refresh_token
   end
 
   describe "incoming binary term messages" do

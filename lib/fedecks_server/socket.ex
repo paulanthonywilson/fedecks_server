@@ -111,7 +111,6 @@ defmodule FedecksServer.Socket do
 
   @impl Phoenix.Socket.Transport
   def init(state) do
-    send(self(), :refresh_token)
     maybe_handle(state, :connection_established, [])
     {:ok, state}
   end
@@ -141,6 +140,10 @@ defmodule FedecksServer.Socket do
   @impl Phoenix.Socket.Transport
   def handle_in({:binary, <<131>> <> _ = bin_message}, state) do
     case BinaryCodec.decode(bin_message) do
+      {:ok, 'token_please'} ->
+        send(self(), :refresh_token)
+        {:ok, state}
+
       {:ok, message} ->
         do_handle_in(message, :handle_in, state)
 
