@@ -18,7 +18,8 @@ defmodule FedecksServer.Socket do
 
   @impl Phoenix.Socket.Transport
   def child_spec(_) do
-    %{id: Task, start: {Task, :start_link, [fn -> :ok end]}, restart: :transient}
+    unique_id = :"#{__MODULE__}.#{:rand.uniform()}.Task"
+    %{id: unique_id, start: {Task, :start_link, [fn -> :ok end]}, restart: :transient}
   end
 
   @impl Phoenix.Socket.Transport
