@@ -112,16 +112,19 @@ defmodule FedecksServer.Socket do
 
   @impl Phoenix.Socket.Transport
   def init(state) do
-    maybe_handle(state, :connection_established, [])
+    state
+    |> schedule_token_refresh()
+    |> maybe_handle(:connection_established, [])
+
     {:ok, state}
   end
 
   @impl Phoenix.Socket.Transport
-  def handle_info(:refresh_token, %{device_id: device_id, handler: handler} = state) do
-    Process.send_after(self(), :refresh_token, token_refresh_millis(handler))
-    token = device_id |> Token.to_token(token_expiry_secs(handler), token_secrets(handler))
-    msg = BinaryCodec.encode({'token', token})
-    {:push, {:binary, msg}, state}
+  def handle_info(:refresh_token, state) do
+    # Process.send_after(self(), :refresh_token, token_refresh_millis(handler))
+    state
+    |> schedule_token_refresh()
+    |> send_token()
   end
 
   def handle_info(message, state) do
@@ -138,12 +141,22 @@ defmodule FedecksServer.Socket do
     end
   end
 
+  defp schedule_token_refresh(%{handler: handler} = state) do
+    Process.send_after(self(), :refresh_token, token_refresh_millis(handler))
+    state
+  end
+
+  defp send_token(%{device_id: device_id, handler: handler} = state) do
+    token = device_id |> Token.to_token(token_expiry_secs(handler), token_secrets(handler))
+    msg = BinaryCodec.encode({'token', token})
+    {:push, {:binary, msg}, state}
+  end
+
   @impl Phoenix.Socket.Transport
   def handle_in({<<131>> <> _ = bin_message, [opcode: :binary]}, state) do
     case BinaryCodec.decode(bin_message) do
       {:ok, 'token_please'} ->
-        send(self(), :refresh_token)
-        {:ok, state}
+        send_token(state)
 
       {:ok, message} ->
         do_handle_in(message, :handle_in, state)

@@ -233,16 +233,26 @@ defmodule FedecksServer.SocketTest do
       {:ok, _} = Socket.init(state(BareHandler, "nerves-123b"))
       refute_received {_, :connected, _}
     end
+
+    test "schedules a token refresh" do
+      {:ok, _} = Socket.init(state(FullHandler, "nerves-123b"))
+      # FullHandler refresh is a milliseconds, so it will turn up
+      assert_receive :refresh_token
+
+      # BareHandler refresh is the default, which is hours, so will not turn up
+      {:ok, _} = Socket.init(state(BareHandler, "nerves-456"))
+      refute_receive :refresh_token
+    end
   end
 
   test "requesting a token" do
-    assert {:ok, %{device_id: "y"}} =
+    assert {:push, {:binary, token}, %{device_id: "y"}} =
              Socket.handle_in(
                {:erlang.term_to_binary('token_please'), opcode: :binary},
                state(BareHandler, "y")
              )
 
-    assert_received :refresh_token
+    assert {'token', _} = :erlang.binary_to_term(token)
   end
 
   describe "incoming binary term messages" do
