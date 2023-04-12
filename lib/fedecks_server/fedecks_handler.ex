@@ -54,7 +54,7 @@ defmodule FedecksServer.FedecksHandler do
               :ok | {:reply, message :: term()} | {:stop, term()}
 
   @doc """
-  Optional. Handles incoming messages which are not safe Erlang terms.
+  Optional. Handles incoming messages raw binary messages.
 
   - For no reply, return ':ok'
   - To reply, return '{:reply, message}`. The message will be sent to the client as a binary.

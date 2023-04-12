@@ -121,7 +121,6 @@ defmodule FedecksServer.Socket do
 
   @impl Phoenix.Socket.Transport
   def handle_info(:refresh_token, state) do
-    # Process.send_after(self(), :refresh_token, token_refresh_millis(handler))
     state
     |> schedule_token_refresh()
     |> send_token()
