@@ -45,7 +45,7 @@ defmodule FedecksServer.FedecksHandler do
   messages are ignored.
 
   - For no reply, return ':ok'
-  - To reply, return '{:reply, message}`. The message will be conded as an Erlang binary term. As the
+  - To reply, return `{:reply, "some message"}`. The message will be conded as an Erlang binary term. As the
   Fedecks client will used safe decoding avoid atoms (or structs) that are not present on the client. It
   is safer to stick to maps, rather than structs, and strings rather than atoms (eg for map keys).
   - To terminate the connection, return `{:stop, reason}`
@@ -56,8 +56,8 @@ defmodule FedecksServer.FedecksHandler do
   @doc """
   Optional. Handles incoming messages raw binary messages.
 
-  - For no reply, return ':ok'
-  - To reply, return '{:reply, message}`. The message will be sent to the client as a binary.
+  - For no reply, return `:ok`
+  - To reply, return `{:reply, message}`. The message will be sent to the client as a binary.
   - To terminate the connection, return `{:stop, reason}`
   """
   @callback handle_raw_in(device_id :: String.t(), message :: binary()) ::

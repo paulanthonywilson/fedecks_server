@@ -1,7 +1,7 @@
 defmodule FedecksServer.BinaryCodec do
   @moduledoc """
   Provides:-
-  - A thin wrapper over `:erlang.binary_to_term/0` and `:erlang.term_to_binary/1`. The latter
+  - A thin wrapper over `:erlang.binary_to_term/1` and `:erlang.term_to_binary/1`. The latter
   to add some error handling and ensure only safe decoding; the former is included for symmetry.
   - Additional support for encoding / decoding binary terms to base 64
   """

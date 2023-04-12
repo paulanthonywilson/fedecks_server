@@ -4,7 +4,18 @@ defmodule FedecksServer.Socket do
 
   Usage:
 
-  tbd
+  In your endpoint call the macro `fedecks_socket/2` eg
+
+  ```
+  defmodule MyApp.Endpoint
+    use Phoenix.Endpoint, otp_app: :my_app
+
+    import FedecksServer.Socket, only: [fedecks_socket: 1]
+
+    fedecks_socket(MyApp.SocketHandler)
+  end
+
+  ```
 
   """
   alias FedecksServer.{Config, Token, BinaryCodec}
@@ -224,10 +235,18 @@ defmodule FedecksServer.Socket do
     end
   end
 
-  defmacro fedecks_socket(path \\ "/fedecks", mod) do
+  @doc """
+  Included in your Endpoint. Note:
+
+  * _path_ defaults to "/fedecks". The actual endpoint path will have "/websocket" appended by Phoenix, so the default
+  is really "/fedecks/websocket".
+  * The _handler_ should be a module that implements `FedecksServer.FedecksHandler`.
+  """
+  @spec fedecks_socket(path :: String.t(), handler_module :: atom()) :: term()
+  defmacro fedecks_socket(path \\ "/fedecks", handler) do
     quote do
       Phoenix.Endpoint.socket(unquote(path), unquote(__MODULE__),
-        websocket: [connect_info: [:x_headers, fedecks_handler: unquote(mod)]],
+        websocket: [connect_info: [:x_headers, fedecks_handler: unquote(handler)]],
         longpoll: false
       )
     end
