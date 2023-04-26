@@ -1,5 +1,6 @@
 defmodule FedecksServer.Token do
-  @moduledoc """
+  @moduledoc false
+  _doc = """
   Token used by clients that have already authorised.
   """
 

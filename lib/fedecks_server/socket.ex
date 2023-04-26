@@ -18,14 +18,13 @@ defmodule FedecksServer.Socket do
   ```
 
   """
+
   alias FedecksServer.{Config, Token, BinaryCodec}
   @behaviour Phoenix.Socket.Transport
 
   keys = [:device_id, :handler]
   @enforce_keys keys
   defstruct keys
-
-  @type t :: %{device_id: String.t(), handler: handler_module :: atom()}
 
   @impl Phoenix.Socket.Transport
   def child_spec(_) do

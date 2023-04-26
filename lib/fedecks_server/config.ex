@@ -1,7 +1,9 @@
 defmodule FedecksServer.Config do
-  @moduledoc """
+  @moduledoc false
+  _doc = """
   Reads configuration associated with a particular Fedecks socket handler.
   """
+
   @secs_in_4_weeks 60 * 60 * 24 * 7 * 4
 
   @type config_key :: {otp_app :: atom(), handler_module :: atom()}
