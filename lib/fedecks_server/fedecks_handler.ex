@@ -28,8 +28,9 @@ defmodule FedecksServer.FedecksHandler do
   @type opcode :: :binary | :text
 
   @doc """
-  Use the fedecks information supplied at login authenticate the user? Only called if there
-  is no `fedecks-token` supplied, so is likely to be an initial registration, a re-registration
+  Use the fedecks information supplied at login authenticate the user.
+
+  Only called if there is no `fedecks-token` supplied, so is likely to be an initial registration, a re-registration
   (perhaps to associate the device with a new user), or a re-registration due to an expired token which
   can occur if a device has not connected for a few days.
 
