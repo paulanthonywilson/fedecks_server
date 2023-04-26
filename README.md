@@ -87,3 +87,9 @@ The socket path defaults to "fedecks" but can be optionally provided to the `Fed
 Use [Fedecks Client](https://hexdocs.pm/fedecks_client/) on your Nerves device to communicate with the server.
 
 
+## Potential roadmap
+
+Phoenix 1.7 now uses [WebSock](https://hexdocs.pm/websock/0.5.0/WebSock.html) which is analagous to `Plug` for websockets, which allows for more flexible approach to adding a `Phoenix.Socket.Transport` to your endpoint. I want to find some time to explore that approach.   
+
+
+
