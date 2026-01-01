@@ -20,7 +20,7 @@ defmodule FedecksServer.BinaryCodec do
   """
   @spec decode(binary()) :: :error | {:ok, term()}
   def decode(<<131>> <> _ = bin) do
-    {:ok, :erlang.binary_to_term(bin, [:safe])}
+    {:ok, Plug.Crypto.non_executable_binary_to_term(bin, [:safe])}
   rescue
     ArgumentError ->
       :error

@@ -120,7 +120,7 @@ defmodule FedecksServer.SocketTest do
 
       assert {:push, {:binary, msg}, ^state} = Socket.handle_info(:refresh_token, state)
 
-      assert {'token', token} = :erlang.binary_to_term(msg)
+      assert {~c"token", token} = :erlang.binary_to_term(msg)
 
       assert {:ok, ^state} =
                %{"fedecks-token" => token, "fedecks-device-id" => "nerves-987x"}
@@ -141,15 +141,15 @@ defmodule FedecksServer.SocketTest do
       {:push, {_, msg}, _} =
         Socket.handle_info(:refresh_token, %Socket{device_id: "nerves-987x", handler: FullHandler})
 
-      {'token', token} = :erlang.binary_to_term(msg)
+      {~c"token", token} = :erlang.binary_to_term(msg)
 
       assert :error =
-               %{"fedecks-token" => token, "fedecks-device-id" => "sciatica-987x"}
+               %{"fedecks-token" => token, "fedecks-device-id" => "sciatica-987"}
                |> conn_with_auth_headers(FullHandler)
                |> Socket.connect()
 
       assert_received {:socket_error,
-                       {"sciatica-987x", :invalid_token,
+                       {"sciatica-987", :invalid_token,
                         "wrong device id in token, 'nerves-987x'"}}
     end
   end
@@ -248,11 +248,11 @@ defmodule FedecksServer.SocketTest do
   test "requesting a token" do
     assert {:push, {:binary, token}, %{device_id: "y"}} =
              Socket.handle_in(
-               {:erlang.term_to_binary('token_please'), opcode: :binary},
+               {:erlang.term_to_binary(~c"token_please"), opcode: :binary},
                state(BareHandler, "y")
              )
 
-    assert {'token', _} = :erlang.binary_to_term(token)
+    assert {~c"token", _} = :erlang.binary_to_term(token)
   end
 
   describe "incoming binary term messages" do

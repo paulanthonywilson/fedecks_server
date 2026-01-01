@@ -26,6 +26,8 @@ defmodule FedecksServer.Socket do
   @enforce_keys keys
   defstruct keys
 
+  # Executed once per `Fedecks.Socket§ - not going to exhaust the atom table
+  # sobelow_skip ["DOS.BinToAtom"]
   @impl Phoenix.Socket.Transport
   def child_spec(_) do
     unique_id = :"#{__MODULE__}.#{:rand.uniform()}.Task"
@@ -157,14 +159,14 @@ defmodule FedecksServer.Socket do
 
   defp send_token(%{device_id: device_id, handler: handler} = state) do
     token = device_id |> Token.to_token(token_expiry_secs(handler), token_secrets(handler))
-    msg = BinaryCodec.encode({'token', token})
+    msg = BinaryCodec.encode({~c"token", token})
     {:push, {:binary, msg}, state}
   end
 
   @impl Phoenix.Socket.Transport
   def handle_in({<<131>> <> _ = bin_message, [opcode: :binary]}, state) do
     case BinaryCodec.decode(bin_message) do
-      {:ok, 'token_please'} ->
+      {:ok, ~c"token_please"} ->
         send_token(state)
 
       {:ok, message} ->

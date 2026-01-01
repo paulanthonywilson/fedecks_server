@@ -4,7 +4,7 @@ defmodule FedecksServer.MixProject do
   def project do
     [
       app: :fedecks_server,
-      version: "0.1.1",
+      version: "0.2.9",
       elixir: "~> 1.14",
       start_permanent: Mix.env() == :prod,
       elixirc_paths: elixirc_paths(Mix.env()),
@@ -25,7 +25,8 @@ defmodule FedecksServer.MixProject do
       {:credo, "~> 1.6", only: [:dev, :test]},
       {:dialyxir, "~> 1.2", only: [:dev, :test], runtime: false},
       {:phoenix, "~> 1.6"},
-      {:ex_doc, "~> 0.29.1", only: :dev, runtime: false}
+      {:ex_doc, "~> 0.29.1", only: :dev, runtime: false},
+      {:sobelow, "~> 0.14", only: [:dev, :test], runtime: false, warn_if_outdated: true}
     ]
   end
 

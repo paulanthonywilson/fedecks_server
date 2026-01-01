@@ -41,12 +41,14 @@ defmodule FedecksServer.FedecksHandler do
   @callback authenticate?(map()) :: boolean()
 
   @doc """
-  Optional. Handles incoming message, which has been encoded by the Fedecks client as an Erlang binary term that
+  Optional.
+
+  Handles incoming message, which has been encoded by the Fedecks client as an Erlang binary term that
   is safe to decode. Binary messages which are not safe Erlang terms can be handled by `handle_raw_in/2`. Text
   messages are ignored.
 
   - For no reply, return ':ok'
-  - To reply, return `{:reply, "some message"}`. The message will be conded as an Erlang binary term. As the
+  - To reply, return `{:reply, "some message"}`. The message will be coded as an Erlang binary term. As the
   Fedecks client will used safe decoding avoid atoms (or structs) that are not present on the client. It
   is safer to stick to maps, rather than structs, and strings rather than atoms (eg for map keys).
   - To terminate the connection, return `{:stop, reason}`
@@ -55,7 +57,9 @@ defmodule FedecksServer.FedecksHandler do
               :ok | {:reply, message :: term()} | {:stop, term()}
 
   @doc """
-  Optional. Handles incoming messages raw binary messages.
+  Optional.
+
+  Handles incoming messages raw binary messages.
 
   - For no reply, return `:ok`
   - To reply, return `{:reply, message}`. The message will be sent to the client as a binary.
@@ -65,6 +69,8 @@ defmodule FedecksServer.FedecksHandler do
               :ok | {:reply, message :: term()} | {:stop, term()}
 
   @doc """
+  Optional.
+
   Called when a new connection is established, with the Fedecks box device_id.
   """
   @callback connection_established(device_id :: String.t()) :: any()
@@ -75,6 +81,8 @@ defmodule FedecksServer.FedecksHandler do
   @callback otp_app :: atom()
 
   @doc """
+  Optional.
+
   Called when the connection process has received a message (to its process mailbox). Internal Fedecks messages, ie `:refresh_token` have been filtered
   out. The info message and a map of user data is sent. Return
 
